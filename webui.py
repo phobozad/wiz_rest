@@ -31,7 +31,8 @@ class App:
     def _setup_routes(self):
         route_map = [
                 {"method": "GET", "path": "/", "handler": self._index_page},
-                {"method": "POST", "path": "/api/lights/<light_id>/state", "handler": self._state_command_handler}
+                {"method": "PUT", "path": "/api/lights/<light_id>/state", "handler": self._state_command_handler},
+                {"method": "PUT", "path": "/api/lights/<light_id>/state/on/toggle", "handler": self._toggle_light_state_handler}
         ]
 
         for route in route_map:
@@ -63,6 +64,34 @@ class App:
 
         # Finally, assume its a DNS shortname and generate an FQDN (assuming domain was provided)
         return self._generate_dns_fqdn(light_id)
+
+
+
+    def _toggle_light_state_handler(self, light_id: str):
+        # Parse input
+        data = bottle.request.json
+
+        response_dict = {}
+        response_dict['success'] = {}
+
+
+        try:
+            # Setup light object
+            light = wiz.wizlight(self._generate_light_connectionstring(light_id))
+
+            asyncio.run(asyncio.wait_for(light.lightSwitch(), timeout=5))
+            asyncio.run(asyncio.wait_for(light.updateState(), timeout=5))
+            response_dict['success'][f'/lights/{light_id}/state/on'] = light.state.get_state()
+        except (concurrent.futures._base.TimeoutError,wiz.exceptions.WixLightConnectionError):
+            # Light commands timed out
+            bottle.response.status = 503
+            bottle.response.content_type = "application/json"
+            return "{'error': 'Timeout while attempting to communicate with light.'}\n"
+
+        # Include current state in response?
+        bottle.response.status = 200
+        return response_dict
+
 
 
     def _state_command_handler(self, light_id: str):
@@ -113,7 +142,7 @@ class App:
                     asyncio.run(asyncio.wait_for(light.updateState(), timeout=5))
                     response_dict['success'][f'/lights/{light_id}/state/on'] = light.state.get_state()
 
-                except concurrent.futures._base.TimeoutError:
+                except (concurrent.futures._base.TimeoutError,wiz.exceptions.WixLightConnectionError):
                     # Light commands timed out
                     bottle.response.status = 503
                     bottle.response.content_type = "application/json"
@@ -130,3 +159,5 @@ class App:
         # Include current state in response?
         bottle.response.status = 200
         return response_dict
+
+
