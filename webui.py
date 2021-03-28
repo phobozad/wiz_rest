@@ -82,7 +82,7 @@ class App:
             asyncio.run(asyncio.wait_for(light.lightSwitch(), timeout=5))
             asyncio.run(asyncio.wait_for(light.updateState(), timeout=5))
             response_dict['success'][f'/lights/{light_id}/state/on'] = light.state.get_state()
-        except (concurrent.futures._base.TimeoutError,wiz.exceptions.WixLightConnectionError):
+        except (concurrent.futures._base.TimeoutError,wiz.exceptions.WizLightConnectionError):
             # Light commands timed out
             bottle.response.status = 503
             bottle.response.content_type = "application/json"
