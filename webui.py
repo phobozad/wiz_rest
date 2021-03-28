@@ -116,6 +116,16 @@ class App:
                 else:
                     raise KeyError
 
+            # If we got a light scene, handle that.  Note this isn't in the official Hue API
+            if "wiz_scene" in data:
+                # Make sure data is valid boolean value
+                if data['wiz_scene'] in wiz.scenes.SCENES.values():
+                    bulb_changes['wiz_scene'] = data['wiz_scene']
+                else:
+                    # Probably should raise ValueError with a more accurate error message for this one
+                    raise KeyError
+
+
 
         except KeyError:
             bottle.response.status = 400
@@ -133,9 +143,17 @@ class App:
             light = wiz.wizlight(self._generate_light_connectionstring(light_id))
 
             if "on" in bulb_changes:
+                pilot = None
+
+                if "wiz_scene" in bulb_changes:
+                    pilot = wiz.PilotBuilder(scene = light.get_id_from_scene_name(bulb_changes['wiz_scene']))
+
                 try:
                     if bulb_changes['on']:
-                        asyncio.run(asyncio.wait_for(light.turn_on(), timeout=5))
+                        if pilot is not None:
+                            asyncio.run(asyncio.wait_for(light.turn_on(pilot), timeout=5))
+                        else:
+                            asyncio.run(asyncio.wait_for(light.turn_on(), timeout=5))
                     else:
                         asyncio.run(asyncio.wait_for(light.turn_off(), timeout=5))
 
