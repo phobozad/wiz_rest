@@ -132,6 +132,20 @@ class App:
             bottle.response.content_type = "application/json"
             return "{'error': 'Missing key fields in request'}\n"
 
+        try:
+            # If we got a brightness level, handle that
+            if "bri" in data:
+
+                if data['bri'] > 255 or data['bri'] < 0:
+                    raise ValueError
+
+                bulb_changes['bri'] = int(data['bri'])
+
+
+        except ValueError:
+            bottle.response.status = 400
+            bottle.response.content_type = "application/json"
+            return "{'error': 'Invalid Brightness Value'}\n"
 
         response_dict = {}
         response_dict['success'] = {}
@@ -147,6 +161,12 @@ class App:
 
                 if "wiz_scene" in bulb_changes:
                     pilot = wiz.PilotBuilder(scene = light.get_id_from_scene_name(bulb_changes['wiz_scene']))
+
+                if "bri" in bulb_changes:
+                    if pilot is not None:
+                        pilot._set_brightness(bulb_changes['bri'])
+                    else:
+                        pilot = wiz.PilotBuilder(brightness = bulb_changes['bri'])
 
                 try:
                     if bulb_changes['on']:
